@@ -337,7 +337,7 @@
 <main id="canvas-wrap">
   <canvas id="canvas"></canvas>
   <div id="hint">
-    <kbd>LMB</kbd> use tool &nbsp;·&nbsp; <kbd>RMB</kbd> orbit &nbsp;·&nbsp; <kbd>MMB/scroll</kbd> zoom<br/>
+    <kbd>LMB</kbd> use tool &nbsp;·&nbsp; <kbd>RMB</kbd>/<kbd>⇧+LMB</kbd> orbit &nbsp;·&nbsp; <kbd id="pan-hint-mod">Alt</kbd>+<kbd>RMB</kbd> pan &nbsp;·&nbsp; <kbd>MMB/scroll</kbd> zoom<br/>
     <kbd>B</kbd> build &nbsp;<kbd>E</kbd> erase &nbsp;<kbd>P</kbd> paint &nbsp;<kbd>⇧P</kbd> face &nbsp;<kbd>I</kbd> pick &nbsp;<kbd>F</kbd> fill &nbsp;<kbd>L</kbd> line &nbsp;<kbd>R</kbd> rect<br/>
     <kbd>Ctrl+Z</kbd> undo &nbsp;<kbd>Ctrl+Y</kbd> redo &nbsp;<kbd>G</kbd> grid &nbsp;<kbd>Space</kbd> recenter
   </div>
@@ -444,6 +444,19 @@ const camRadius = { v: 50 };
 const camTheta = { v: Math.PI / 4 };
 const camPhi = { v: Math.PI / 3 };
 const camTarget = new THREE.Vector3(GRID/2, GRID/4, GRID/2);
+const isMacOS = /Mac|iPhone|iPad|iPod/i.test(navigator.platform) || /Mac|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const panModifierLabel = isMacOS ? 'Option' : 'Alt';
+const panHintMod = document.getElementById('pan-hint-mod');
+if (panHintMod) panHintMod.textContent = panModifierLabel;
+const hintEl = document.getElementById('hint');
+if (hintEl && isMacOS) {
+  hintEl.innerHTML =
+    `<kbd>LMB</kbd> use tool &nbsp;·&nbsp; <kbd>RMB</kbd>/<kbd>⇧+LMB</kbd> orbit &nbsp;·&nbsp; ` +
+    `<kbd>${panModifierLabel}</kbd>+<kbd>RMB</kbd> pan &nbsp;·&nbsp; <kbd>Scroll</kbd> pan &nbsp;·&nbsp; ` +
+    `<kbd>Pinch</kbd> zoom<br/>` +
+    `<kbd>B</kbd> build &nbsp;<kbd>E</kbd> erase &nbsp;<kbd>P</kbd> paint &nbsp;<kbd>⇧P</kbd> face &nbsp;<kbd>I</kbd> pick &nbsp;<kbd>F</kbd> fill &nbsp;<kbd>L</kbd> line &nbsp;<kbd>R</kbd> rect<br/>` +
+    `<kbd>Cmd+Z</kbd> undo &nbsp;<kbd>Cmd+Y</kbd> redo &nbsp;<kbd>G</kbd> grid &nbsp;<kbd>Space</kbd> recenter`;
+}
 function updateCamera() {
   const r = camRadius.v;
   const x = camTarget.x + r * Math.sin(camPhi.v) * Math.sin(camTheta.v);
@@ -943,6 +956,11 @@ canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 canvas.addEventListener('pointerdown', (e) => {
   canvas.setPointerCapture(e.pointerId);
+  if (e.button === 2 && e.altKey) {
+    orbiting = 'pan';
+    lastMouse.x = e.clientX; lastMouse.y = e.clientY;
+    return;
+  }
   if (e.button === 2 || (e.button === 0 && e.shiftKey)) {
     orbiting = true;
     lastMouse.x = e.clientX; lastMouse.y = e.clientY;
@@ -1024,8 +1042,25 @@ canvas.addEventListener('pointerup', (e) => {
 
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
-  camRadius.v *= (e.deltaY > 0 ? 1.1 : 0.9);
-  camRadius.v = Math.max(8, Math.min(200, camRadius.v));
+  if (isMacOS) {
+    // macOS trackpads surface two-finger gestures as wheel events.
+    // Default scroll pans; pinch zoom (where browsers expose ctrlKey) zooms.
+    const wantsZoom = e.ctrlKey;
+    if (wantsZoom) {
+      camRadius.v *= (e.deltaY > 0 ? 1.1 : 0.9);
+      camRadius.v = Math.max(8, Math.min(200, camRadius.v));
+    } else {
+      const right = new THREE.Vector3();
+      const up = new THREE.Vector3();
+      camera.matrixWorld.extractBasis(right, up, new THREE.Vector3());
+      const factor = camRadius.v * 0.0015;
+      camTarget.addScaledVector(right, e.deltaX * factor);
+      camTarget.addScaledVector(up, -e.deltaY * factor);
+    }
+  } else {
+    camRadius.v *= (e.deltaY > 0 ? 1.1 : 0.9);
+    camRadius.v = Math.max(8, Math.min(200, camRadius.v));
+  }
   updateCamera();
 }, { passive: false });
 
