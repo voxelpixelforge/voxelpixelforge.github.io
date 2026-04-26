@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VOXEL // pixel forge</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Major+Mono+Display&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0e10;
+    --panel: #16161a;
+    --panel-2: #1d1d22;
+    --line: #2a2a31;
+    --ink: #e8e6df;
+    --dim: #8a8a92;
+    --accent: #ff5b3a;
+    --accent-2: #ffd166;
+    --good: #6ee7b7;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink);
+    font-family: 'JetBrains Mono', monospace;
+    user-select: none;
+  }
+  body {
+    display: grid;
+    grid-template-columns: 240px 1fr 260px;
+    grid-template-rows: 44px 1fr 28px;
+    grid-template-areas:
+      "top top top"
+      "left canvas right"
+      "status status status";
+  }
+  /* Top bar */
+  #topbar {
+    grid-area: top;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  #brand {
+    font-family: 'Major Mono Display', monospace;
+    font-size: 18px; letter-spacing: 2px;
+    color: var(--ink);
+  }
+  #brand span { color: var(--accent); }
+  #brand i { color: var(--dim); font-style: normal; font-size: 11px; margin-left: 8px; letter-spacing: 1px;}
+  .top-actions { display: flex; gap: 8px; }
+  button.btn {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    padding: 7px 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  button.btn:hover { border-color: var(--accent); color: var(--accent); }
+  button.btn.primary {
+    background: var(--accent); border-color: var(--accent); color: #000;
+  }
+  button.btn.primary:hover { background: var(--accent-2); border-color: var(--accent-2); color: #000;}
+  button.btn.danger:hover { border-color: #ff3a3a; color: #ff3a3a;}
+
+  /* Left panel — tools */
+  #left {
+    grid-area: left;
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+    padding: 14px 12px;
+    overflow-y: auto;
+  }
+  .group {
+    margin-bottom: 18px;
+  }
+  .group h4 {
+    margin: 0 0 10px;
+    font-size: 10px; letter-spacing: 2px; color: var(--dim);
+    text-transform: uppercase; font-weight: 500;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 6px;
+  }
+  .tools {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  }
+  .tool {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--ink);
+    font-family: inherit;
+    padding: 10px 4px;
+    cursor: pointer;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.12s;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .tool svg { width: 18px; height: 18px; }
+  .tool:hover { border-color: var(--dim); }
+  .tool.active {
+    background: var(--accent); border-color: var(--accent); color: #000;
+  }
+
+  /* Color section */
+  .swatch-grid {
+    display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px;
+  }
+  .swatch {
+    aspect-ratio: 1; border: 1px solid var(--line);
+    cursor: pointer; transition: transform 0.1s;
+    position: relative;
+  }
+  .swatch:hover { transform: scale(1.15); z-index: 2; position:relative;}
+  .swatch.active {
+    outline: 2px solid var(--ink); outline-offset: 1px;
+  }
+  .palette-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 8px;
+  }
+  .palette-actions .btn {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+  .picker-row {
+    display: flex; align-items: center; gap: 8px; margin-top: 10px;
+  }
+  .picker-row input[type="color"] {
+    width: 36px; height: 30px; padding: 0; border: 1px solid var(--line); background: var(--panel-2); cursor: pointer;
+  }
+  .picker-row input[type="text"] {
+    flex: 1; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
+    font-family: inherit; font-size: 11px; padding: 6px 8px;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .add-swatch {
+    background: var(--panel-2); border: 1px dashed var(--line); color: var(--dim);
+    aspect-ratio: 1; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .add-swatch:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* Right panel */
+  #right {
+    grid-area: right;
+    background: var(--panel);
+    border-left: 1px solid var(--line);
+    padding: 14px 12px;
+    overflow-y: auto;
+  }
+  .row {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+    font-size: 11px;
+  }
+  .row label { color: var(--dim); letter-spacing: 1px; }
+  .row input[type="number"], .row input[type="range"] {
+    background: var(--panel-2); border: 1px solid var(--line);
+    color: var(--ink); font-family: inherit; padding: 4px 6px;
+    width: 70px; font-size: 11px;
+  }
+  .toggle {
+    display: flex; gap: 4px;
+  }
+  .toggle button {
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
+    font-family: inherit; padding: 4px 8px; cursor: pointer; font-size: 10px;
+    letter-spacing: 1px;
+  }
+  .toggle button.on { background: var(--accent); border-color: var(--accent); color: #000; }
+
+  .info-line {
+    display: flex; justify-content: space-between; padding: 4px 0;
+    font-size: 11px; color: var(--dim); border-bottom: 1px dotted var(--line);
+  }
+  .info-line span:last-child { color: var(--ink); }
+
+  /* Canvas */
+  #canvas-wrap {
+    grid-area: canvas;
+    position: relative;
+    background:
+      radial-gradient(ellipse at top, #1a1a20 0%, #0a0a0c 100%);
+    overflow: hidden;
+  }
+  #canvas { display: block; width: 100%; height: 100%; }
+  #hint {
+    position: absolute; top: 14px; left: 14px;
+    background: rgba(0,0,0,0.5); border: 1px solid var(--line);
+    backdrop-filter: blur(6px);
+    padding: 8px 12px;
+    font-size: 10px; color: var(--dim);
+    letter-spacing: 1px; line-height: 1.7;
+    pointer-events: none;
+  }
+  #hint kbd {
+    background: var(--panel-2); border: 1px solid var(--line);
+    padding: 1px 5px; font-size: 9px; color: var(--ink);
+    margin: 0 2px;
+  }
+  #axis-indicator {
+    position: absolute; bottom: 14px; left: 14px;
+    width: 80px; height: 80px;
+    pointer-events: none;
+  }
+
+  /* Status bar */
+  #status {
+    grid-area: status;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    display: flex; align-items: center; padding: 0 16px;
+    font-size: 10px; color: var(--dim); letter-spacing: 1.5px;
+    gap: 24px;
+  }
+  #status .item span { color: var(--ink); }
+  #status .pulse {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--good);
+    margin-right: 6px; display: inline-block;
+    box-shadow: 0 0 8px var(--good);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--line); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--dim); }
+
+  /* Mobile fallback */
+  @media (max-width: 900px) {
+    body {
+      grid-template-columns: 1fr;
+      grid-template-rows: 44px 1fr auto auto 28px;
+      grid-template-areas:
+        "top"
+        "canvas"
+        "left"
+        "right"
+        "status";
+    }
+    #left, #right { max-height: 200px; border: none; border-top: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div id="brand">VO<span>X</span>EL <i>// pixel forge v1</i></div>
+  <div class="top-actions">
+    <button class="btn" id="btn-clear">Clear</button>
+    <button class="btn" id="btn-save">Save .json</button>
+    <button class="btn" id="btn-load">Load .json</button>
+    <input type="file" id="load-input" accept=".json" style="display:none" />
+    <button class="btn primary" id="btn-export">Export .glb</button>
+  </div>
+</div>
+
+<aside id="left">
+  <div class="group">
+    <h4>Tool</h4>
+    <div class="tools" id="tool-list">
+      <button class="tool active" data-tool="add" title="Add (B)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Add
+      </button>
+      <button class="tool" data-tool="erase" title="Erase (E)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9-9 9-9-9z"/><path d="M3 12h18"/></svg>
+        Erase
+      </button>
+      <button class="tool" data-tool="paint" title="Paint whole voxel (P)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 11l-7 7-4-4 7-7"/><path d="M14 4l6 6"/></svg>
+        Paint
+      </button>
+      <button class="tool" data-tool="facepaint" title="Paint single face (Shift+P)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8l8-4 8 4-8 4z"/><path d="M4 8v8l8 4"/><path d="M20 8v8l-8 4" stroke-dasharray="2 2"/></svg>
+        Face
+      </button>
+      <button class="tool" data-tool="pick" title="Pick (I)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21l8-8M11 13l4 4"/><circle cx="18" cy="6" r="3"/></svg>
+        Pick
+      </button>
+      <button class="tool" data-tool="fill" title="Fill (F)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12l8-8 8 8-8 8z"/></svg>
+        Fill
+      </button>
+      <button class="tool" data-tool="line" title="Line — axis-aligned only (L)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16"/><circle cx="4" cy="20" r="2"/><circle cx="20" cy="20" r="2"/></svg>
+        Line
+      </button>
+      <button class="tool" data-tool="rect" title="Rect — floor/wall (R)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16"/></svg>
+        Rect
+      </button>
+    </div>
+  </div>
+
+  <div class="group">
+    <h4>Color</h4>
+    <div class="swatch-grid" id="swatches"></div>
+    <div class="picker-row">
+      <input type="color" id="color-picker" value="#ff5b3a" />
+      <input type="text" id="hex-input" value="#FF5B3A" maxlength="7" />
+    </div>
+    <div class="palette-actions">
+      <button class="btn" id="btn-reset-palette" title="Restore default palette colors">Reset palette</button>
+    </div>
+  </div>
+
+  <div class="group">
+    <h4>Mirror</h4>
+    <div class="row">
+      <label>X axis</label>
+      <div class="toggle"><button class="mirror-btn" data-axis="x">off</button></div>
+    </div>
+    <div class="row">
+      <label>Y axis</label>
+      <div class="toggle"><button class="mirror-btn" data-axis="y">off</button></div>
+    </div>
+    <div class="row">
+      <label>Z axis</label>
+      <div class="toggle"><button class="mirror-btn" data-axis="z">off</button></div>
+    </div>
+  </div>
+</aside>
+
+<main id="canvas-wrap">
+  <canvas id="canvas"></canvas>
+  <div id="hint">
+    <kbd>LMB</kbd> use tool &nbsp;·&nbsp; <kbd>RMB</kbd> orbit &nbsp;·&nbsp; <kbd>MMB/scroll</kbd> zoom<br/>
+    <kbd>B</kbd> build &nbsp;<kbd>E</kbd> erase &nbsp;<kbd>P</kbd> paint &nbsp;<kbd>⇧P</kbd> face &nbsp;<kbd>I</kbd> pick &nbsp;<kbd>F</kbd> fill &nbsp;<kbd>L</kbd> line &nbsp;<kbd>R</kbd> rect<br/>
+    <kbd>Ctrl+Z</kbd> undo &nbsp;<kbd>Ctrl+Y</kbd> redo &nbsp;<kbd>G</kbd> grid &nbsp;<kbd>Space</kbd> recenter
+  </div>
+  <svg id="axis-indicator" viewBox="-50 -50 100 100">
+    <line x1="0" y1="0" x2="35" y2="0" stroke="#ff5b3a" stroke-width="2"/>
+    <text x="40" y="4" fill="#ff5b3a" font-size="11" font-family="JetBrains Mono">X</text>
+    <line x1="0" y1="0" x2="0" y2="-35" stroke="#6ee7b7" stroke-width="2"/>
+    <text x="-3" y="-40" fill="#6ee7b7" font-size="11" font-family="JetBrains Mono">Y</text>
+    <line x1="0" y1="0" x2="-25" y2="18" stroke="#ffd166" stroke-width="2"/>
+    <text x="-38" y="28" fill="#ffd166" font-size="11" font-family="JetBrains Mono">Z</text>
+    <circle cx="0" cy="0" r="2" fill="#fff"/>
+  </svg>
+</main>
+
+<aside id="right">
+  <div class="group">
+    <h4>Scene</h4>
+    <div class="info-line"><span>Voxels</span><span id="info-count">0</span></div>
+    <div class="info-line"><span>Bounds</span><span id="info-bounds">—</span></div>
+    <div class="info-line"><span>Grid size</span><span id="info-grid">32³</span></div>
+  </div>
+  <div class="group">
+    <h4>Display</h4>
+    <div class="row">
+      <label>Show grid</label>
+      <div class="toggle"><button id="grid-btn" class="on">on</button></div>
+    </div>
+    <div class="row">
+      <label>Show base</label>
+      <div class="toggle"><button id="base-btn" class="on">on</button></div>
+    </div>
+    <div class="row">
+      <label>Voxel size</label>
+      <input type="number" id="vsize-input" value="1" step="0.1" min="0.1" max="5" />
+    </div>
+  </div>
+  <div class="group">
+    <h4>Export</h4>
+    <div class="row">
+      <label>Optimize faces</label>
+      <div class="toggle"><button id="opt-btn" class="on">on</button></div>
+    </div>
+    <p style="font-size:10px;color:var(--dim);line-height:1.6;letter-spacing:0.5px;">
+      Exports a single merged GLB mesh with baked face colors. Hidden interior faces are culled to keep the file small.
+    </p>
+  </div>
+  <div class="group">
+    <h4>Recipes</h4>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+      <button class="btn" data-recipe="tree">Tree</button>
+      <button class="btn" data-recipe="house">House</button>
+      <button class="btn" data-recipe="sword">Sword</button>
+      <button class="btn" data-recipe="heart">Heart</button>
+    </div>
+  </div>
+</aside>
+
+<div id="status">
+  <div class="item"><span class="pulse"></span>READY</div>
+  <div class="item">CURSOR <span id="cursor-pos">—</span></div>
+  <div class="item">TOOL <span id="cur-tool">ADD</span></div>
+  <div class="item">COLOR <span id="cur-color">#FF5B3A</span></div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+// =============== state ===============
+const GRID = 32;                         // grid is GRID x GRID x GRID, voxels stored on integer coords [0..GRID-1]
+const VS = 1;                            // voxel world size (1 unit per voxel)
+const voxels = new Map();                // key "x,y,z" -> hex color (e.g. "#ff5b3a")
+const faceColors = new Map();            // key "x,y,z,f" (f in 0..5) -> hex color override for that face
+const undoStack = [];
+const redoStack = [];
+
+const DEFAULT_PALETTE = [
+  "#0e0e10","#ffffff","#8a8a92","#3a3a44",
+  "#ff5b3a","#ff9f1c","#ffd166","#fff3b0",
+  "#6ee7b7","#06d6a0","#118ab2","#073b4c",
+  "#9b5de5","#f15bb5","#e63946","#a8dadc"
+];
+const PALETTE_STORAGE_KEY = 'voxel-pixel-forge.palette.v1';
+let palette = [];
+let currentColor = "#ff5b3a";
+let currentTool = "add";
+const mirror = { x: false, y: false, z: false };
+let showGrid = true;
+let showBase = true;
+let voxelSize = 1;
+let optimize = true;
+
+// =============== three setup ===============
+const canvas = document.getElementById('canvas');
+const wrap = document.getElementById('canvas-wrap');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+scene.background = null;
+
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 1000);
+const camRadius = { v: 50 };
+const camTheta = { v: Math.PI / 4 };
+const camPhi = { v: Math.PI / 3 };
+const camTarget = new THREE.Vector3(GRID/2, GRID/4, GRID/2);
+function updateCamera() {
+  const r = camRadius.v;
+  const x = camTarget.x + r * Math.sin(camPhi.v) * Math.sin(camTheta.v);
+  const y = camTarget.y + r * Math.cos(camPhi.v);
+  const z = camTarget.z + r * Math.sin(camPhi.v) * Math.cos(camTheta.v);
+  camera.position.set(x, y, z);
+  camera.lookAt(camTarget);
+  updateAxisIndicator();
+}
+updateCamera();
+
+// lights
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const dl = new THREE.DirectionalLight(0xffffff, 0.9);
+dl.position.set(30, 60, 20);
+scene.add(dl);
+const dl2 = new THREE.DirectionalLight(0xff8866, 0.25);
+dl2.position.set(-30, 20, -10);
+scene.add(dl2);
+
+// ground / base plane
+const baseGeo = new THREE.PlaneGeometry(GRID * VS, GRID * VS);
+const baseMat = new THREE.MeshStandardMaterial({ color: 0x16161a, roughness: 0.95, metalness: 0 });
+const base = new THREE.Mesh(baseGeo, baseMat);
+base.rotation.x = -Math.PI/2;
+base.position.set(GRID*VS/2, 0, GRID*VS/2);
+scene.add(base);
+
+// grid
+const gridHelper = new THREE.GridHelper(GRID*VS, GRID, 0x2a2a31, 0x202024);
+gridHelper.position.set(GRID*VS/2, 0.01, GRID*VS/2);
+scene.add(gridHelper);
+
+// bounding box outline
+const boxGeom = new THREE.BoxGeometry(GRID*VS, GRID*VS, GRID*VS);
+const boxEdges = new THREE.EdgesGeometry(boxGeom);
+const boundLines = new THREE.LineSegments(boxEdges, new THREE.LineBasicMaterial({ color: 0x2a2a31 }));
+boundLines.position.set(GRID*VS/2, GRID*VS/2, GRID*VS/2);
+scene.add(boundLines);
+
+// hover preview cube
+const hoverGeo = new THREE.BoxGeometry(VS*1.02, VS*1.02, VS*1.02);
+const hoverMat = new THREE.MeshBasicMaterial({ color: 0xff5b3a, transparent: true, opacity: 0.45, depthWrite: false });
+const hoverMesh = new THREE.Mesh(hoverGeo, hoverMat);
+hoverMesh.visible = false;
+scene.add(hoverMesh);
+const hoverEdge = new THREE.LineSegments(new THREE.EdgesGeometry(hoverGeo), new THREE.LineBasicMaterial({ color: 0xffffff }));
+hoverEdge.visible = false;
+scene.add(hoverEdge);
+
+// Face-paint hover decal: a thin square sitting just above the face the user
+// would paint. Two-sided, no depth write, slightly larger so it reads.
+const faceDecalGeo = new THREE.PlaneGeometry(VS*0.96, VS*0.96);
+const faceDecalMat = new THREE.MeshBasicMaterial({
+  color: 0xff5b3a, transparent: true, opacity: 0.85,
+  side: THREE.DoubleSide, depthWrite: false
+});
+const faceDecal = new THREE.Mesh(faceDecalGeo, faceDecalMat);
+faceDecal.visible = false;
+scene.add(faceDecal);
+const faceDecalEdge = new THREE.LineSegments(
+  new THREE.EdgesGeometry(faceDecalGeo),
+  new THREE.LineBasicMaterial({ color: 0xffffff })
+);
+faceDecalEdge.visible = false;
+scene.add(faceDecalEdge);
+
+// line tool preview group — holds ghost cubes along the in-progress line
+const linePreviewGroup = new THREE.Group();
+scene.add(linePreviewGroup);
+const linePreviewGeo = new THREE.BoxGeometry(VS*1.0, VS*1.0, VS*1.0);
+const linePreviewMat = new THREE.MeshBasicMaterial({ color: 0xff5b3a, transparent: true, opacity: 0.55, depthWrite: false });
+const linePreviewEdgeMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 });
+function clearLinePreview() {
+  while (linePreviewGroup.children.length) {
+    const c = linePreviewGroup.children.pop();
+    if (c.geometry && c !== linePreviewGeo) {
+      // shared geometry — only dispose edge geos
+      if (c.isLineSegments) c.geometry.dispose();
+    }
+  }
+  linePreviewGroup.clear();
+}
+function updateLinePreview(start, end) {
+  clearLinePreview();
+  if (!start || !end) return;
+  const cells = line3d(start, end);
+  linePreviewMat.color.set(currentColor);
+  for (const [x,y,z] of cells) {
+    if (!inBounds(x,y,z)) continue;
+    const m = new THREE.Mesh(linePreviewGeo, linePreviewMat);
+    m.position.set(x*VS + VS/2, y*VS + VS/2, z*VS + VS/2);
+    linePreviewGroup.add(m);
+  }
+  // single edge wireframe at the endpoints to mark them clearly
+  if (cells.length) {
+    const drawEnd = (coord) => {
+      const [x,y,z] = coord;
+      if (!inBounds(x,y,z)) return;
+      const e = new THREE.LineSegments(new THREE.EdgesGeometry(linePreviewGeo), linePreviewEdgeMat);
+      e.position.set(x*VS + VS/2, y*VS + VS/2, z*VS + VS/2);
+      linePreviewGroup.add(e);
+    };
+    drawEnd(cells[0]);
+    if (cells.length > 1) drawEnd(cells[cells.length - 1]);
+  }
+}
+
+// voxel mesh (rebuilt on change)
+let voxelMesh = null;
+
+// =============== voxel data ===============
+const k = (x,y,z) => `${x},${y},${z}`;
+const parseK = (s) => s.split(',').map(Number);
+
+function inBounds(x,y,z){ return x>=0&&y>=0&&z>=0&&x<GRID&&y<GRID&&z<GRID; }
+
+// Face index order matches the F array used by rebuildMesh and buildGLB.
+// 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z. Returns -1 if not axis-aligned.
+function normalToFaceIdx(n) {
+  const ax = Math.abs(n[0]), ay = Math.abs(n[1]), az = Math.abs(n[2]);
+  if (ax > ay && ax > az) return n[0] > 0 ? 0 : 1;
+  if (ay > ax && ay > az) return n[1] > 0 ? 2 : 3;
+  if (az > ax && az > ay) return n[2] > 0 ? 4 : 5;
+  return -1;
+}
+
+function clearFaceOverrides(x, y, z) {
+  // Remove any per-face color overrides for this voxel (all 6 faces).
+  for (let f = 0; f < 6; f++) faceColors.delete(`${x},${y},${z},${f}`);
+}
+
+function setVoxel(x,y,z,color, batch){
+  if (!inBounds(x,y,z)) return;
+  const key = k(x,y,z);
+  if (color === null) {
+    voxels.delete(key);
+    clearFaceOverrides(x, y, z);
+  } else {
+    voxels.set(key, color);
+  }
+  if (mirror.x) {
+    const mx = GRID-1-x;
+    if (mx !== x) {
+      const mk = k(mx,y,z);
+      if (color === null) { voxels.delete(mk); clearFaceOverrides(mx, y, z); }
+      else voxels.set(mk, color);
+    }
+  }
+  if (mirror.y) {
+    const my = GRID-1-y;
+    if (my !== y) {
+      const mk = k(x,my,z);
+      if (color === null) { voxels.delete(mk); clearFaceOverrides(x, my, z); }
+      else voxels.set(mk, color);
+    }
+  }
+  if (mirror.z) {
+    const mz = GRID-1-z;
+    if (mz !== z) {
+      const mk = k(x,y,mz);
+      if (color === null) { voxels.delete(mk); clearFaceOverrides(x, y, mz); }
+      else voxels.set(mk, color);
+    }
+  }
+  if (mirror.x && mirror.y) {
+    const mk = k(GRID-1-x, GRID-1-y, z);
+    if (color === null) { voxels.delete(mk); clearFaceOverrides(GRID-1-x, GRID-1-y, z); }
+    else voxels.set(mk, color);
+  }
+  // (full 8-octant mirror combo would be exhaustive; the above feels right)
+  if (!batch) rebuildMesh();
+}
+
+function pushUndo() {
+  // snapshot maps (cheap-ish for our scale)
+  undoStack.push({ voxels: new Map(voxels), faceColors: new Map(faceColors) });
+  if (undoStack.length > 64) undoStack.shift();
+  redoStack.length = 0;
+}
+
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push({ voxels: new Map(voxels), faceColors: new Map(faceColors) });
+  const prev = undoStack.pop();
+  voxels.clear();
+  for (const [kk,vv] of prev.voxels) voxels.set(kk,vv);
+  faceColors.clear();
+  for (const [kk,vv] of prev.faceColors) faceColors.set(kk,vv);
+  rebuildMesh();
+}
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push({ voxels: new Map(voxels), faceColors: new Map(faceColors) });
+  const nxt = redoStack.pop();
+  voxels.clear();
+  for (const [kk,vv] of nxt.voxels) voxels.set(kk,vv);
+  faceColors.clear();
+  for (const [kk,vv] of nxt.faceColors) faceColors.set(kk,vv);
+  rebuildMesh();
+}
+
+// =============== mesh builder (greedy-ish: face culling) ===============
+function rebuildMesh() {
+  if (voxelMesh) {
+    scene.remove(voxelMesh);
+    voxelMesh.geometry.dispose();
+    voxelMesh.material.dispose();
+    voxelMesh = null;
+  }
+  if (voxels.size === 0) {
+    updateInfo();
+    return;
+  }
+  const positions = [];
+  const normals = [];
+  const colors = [];
+  const indices = [];
+
+  // Face data with CCW winding when viewed from outside (so the cross product
+  // (v1-v0) x (v2-v0) points in the +normal direction).
+  const F = [
+    // +X (looking in -X direction toward face)
+    { n:[ 1,0,0], v:[[1,0,0],[1,1,0],[1,1,1],[1,0,1]] },
+    // -X
+    { n:[-1,0,0], v:[[0,0,1],[0,1,1],[0,1,0],[0,0,0]] },
+    // +Y
+    { n:[0, 1,0], v:[[0,1,1],[1,1,1],[1,1,0],[0,1,0]] },
+    // -Y
+    { n:[0,-1,0], v:[[0,0,0],[1,0,0],[1,0,1],[0,0,1]] },
+    // +Z
+    { n:[0,0, 1], v:[[0,0,1],[1,0,1],[1,1,1],[0,1,1]] },
+    // -Z
+    { n:[0,0,-1], v:[[0,0,0],[0,1,0],[1,1,0],[1,0,0]] },
+  ];
+
+  let vi = 0;
+  for (const [key, color] of voxels) {
+    const [x,y,z] = parseK(key);
+    const baseC = hexToRgb01(color);
+
+    for (let f=0; f<6; f++) {
+      const face = F[f];
+      if (optimize) {
+        const [nx,ny,nz] = face.n;
+        const nk = k(x+nx,y+ny,z+nz);
+        if (voxels.has(nk)) continue; // hidden
+      }
+      // Use a face override if one exists for this voxel/face, else base color.
+      const ovr = faceColors.get(`${x},${y},${z},${f}`);
+      const c = ovr ? hexToRgb01(ovr) : baseC;
+      const baseX = x*VS, baseY = y*VS, baseZ = z*VS;
+      for (let i=0;i<4;i++) {
+        const vx = baseX + face.v[i][0]*VS;
+        const vy = baseY + face.v[i][1]*VS;
+        const vz = baseZ + face.v[i][2]*VS;
+        positions.push(vx, vy, vz);
+        normals.push(face.n[0], face.n[1], face.n[2]);
+        colors.push(c.r, c.g, c.b);
+      }
+      indices.push(vi, vi+1, vi+2, vi, vi+2, vi+3);
+      vi += 4;
+    }
+  }
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geom.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geom.setIndex(indices);
+
+  const mat = new THREE.MeshStandardMaterial({
+    vertexColors: true,
+    metalness: 0.0,
+    roughness: 0.85,
+    flatShading: true,
+  });
+  voxelMesh = new THREE.Mesh(geom, mat);
+  scene.add(voxelMesh);
+  updateInfo();
+}
+
+function hexToRgb01(hex) {
+  const h = hex.replace('#','');
+  const r = parseInt(h.substring(0,2),16)/255;
+  const g = parseInt(h.substring(2,4),16)/255;
+  const b = parseInt(h.substring(4,6),16)/255;
+  // sRGB to linear (so vertex colors look right under MeshStandardMaterial)
+  const toLinear = (c) => c <= 0.04045 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4);
+  return { r: toLinear(r), g: toLinear(g), b: toLinear(b) };
+}
+
+function updateInfo() {
+  document.getElementById('info-count').textContent = voxels.size;
+  if (!voxels.size) { document.getElementById('info-bounds').textContent = '—'; return; }
+  let minx=Infinity,miny=Infinity,minz=Infinity,maxx=-Infinity,maxy=-Infinity,maxz=-Infinity;
+  for (const key of voxels.keys()) {
+    const [x,y,z] = parseK(key);
+    if (x<minx) minx=x; if (y<miny) miny=y; if (z<minz) minz=z;
+    if (x>maxx) maxx=x; if (y>maxy) maxy=y; if (z>maxz) maxz=z;
+  }
+  document.getElementById('info-bounds').textContent = `${maxx-minx+1}×${maxy-miny+1}×${maxz-minz+1}`;
+}
+
+// =============== picking / raycasting ===============
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let hoverInfo = null; // { coord:[x,y,z], placeCoord:[x,y,z] }
+
+function pick(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+
+  // Test against voxel mesh and base
+  const targets = [];
+  if (voxelMesh) targets.push(voxelMesh);
+  targets.push(base);
+
+  const hits = raycaster.intersectObjects(targets, false);
+  if (!hits.length) return null;
+  const hit = hits[0];
+
+  if (hit.object === base) {
+    // place on grid
+    const px = Math.floor(hit.point.x / VS);
+    const pz = Math.floor(hit.point.z / VS);
+    if (!inBounds(px, 0, pz)) return null;
+    return { coord: null, placeCoord: [px, 0, pz], normal: [0,1,0], point: hit.point };
+  } else {
+    // We're hitting a voxel face. Use face normal to find which voxel.
+    const n = hit.face.normal;
+    // Step a tiny amount inside to find the voxel coord
+    const inside = hit.point.clone().addScaledVector(n, -VS*0.5);
+    const cx = Math.floor(inside.x / VS);
+    const cy = Math.floor(inside.y / VS);
+    const cz = Math.floor(inside.z / VS);
+    if (!voxels.has(k(cx,cy,cz))) {
+      // fallback: try outside step
+      const outside = hit.point.clone().addScaledVector(n, VS*0.5);
+      const ox = Math.floor(outside.x / VS) - n.x;
+      const oy = Math.floor(outside.y / VS) - n.y;
+      const oz = Math.floor(outside.z / VS) - n.z;
+      if (voxels.has(k(ox,oy,oz))) {
+        return {
+          coord: [ox,oy,oz],
+          placeCoord: [ox+n.x, oy+n.y, oz+n.z],
+          normal: [n.x, n.y, n.z],
+          point: hit.point
+        };
+      }
+      return null;
+    }
+    return {
+      coord: [cx,cy,cz],
+      placeCoord: [cx+n.x, cy+n.y, cz+n.z],
+      normal: [n.x, n.y, n.z],
+      point: hit.point
+    };
+  }
+}
+
+function updateHover(clientX, clientY) {
+  // If the add tool has a sticky target locked, keep the hover pinned to it
+  // and ignore the actual cursor pick — until the mouse moves enough to
+  // break the lock (handled in pointermove).
+  if (currentTool === 'add' && stickyAddTarget) {
+    updateHoverFromSticky();
+    return;
+  }
+  const info = pick(clientX, clientY);
+  hoverInfo = info;
+  if (!info) {
+    hideHoverIndicators();
+    document.getElementById('cursor-pos').textContent = '—';
+    return;
+  }
+
+  // Face paint gets a special indicator: a thin colored decal on the face.
+  if (currentTool === 'facepaint') {
+    hoverMesh.visible = false; hoverEdge.visible = false;
+    if (!info.coord || !info.normal) { faceDecal.visible = false; faceDecalEdge.visible = false; return; }
+    const [x, y, z] = info.coord;
+    if (!voxels.has(k(x,y,z))) { faceDecal.visible = false; faceDecalEdge.visible = false; return; }
+    const [nx, ny, nz] = info.normal;
+    // Center of the face, sitting just outside the voxel surface so the decal isn't z-fighting.
+    const cxF = x*VS + VS/2 + nx * (VS/2 + 0.005);
+    const cyF = y*VS + VS/2 + ny * (VS/2 + 0.005);
+    const czF = z*VS + VS/2 + nz * (VS/2 + 0.005);
+    faceDecal.position.set(cxF, cyF, czF);
+    faceDecalEdge.position.set(cxF, cyF, czF);
+    // Orient plane to face along the normal. PlaneGeometry default normal is +Z.
+    const q = new THREE.Quaternion().setFromUnitVectors(
+      new THREE.Vector3(0, 0, 1),
+      new THREE.Vector3(nx, ny, nz)
+    );
+    faceDecal.quaternion.copy(q);
+    faceDecalEdge.quaternion.copy(q);
+    faceDecalMat.color.set(currentColor);
+    faceDecal.visible = true; faceDecalEdge.visible = true;
+    document.getElementById('cursor-pos').textContent = `${x},${y},${z} · face ${faceLabel(info.normal)}`;
+    return;
+  }
+
+  // All other tools use the cube ghost.
+  faceDecal.visible = false; faceDecalEdge.visible = false;
+  let target;
+  if (currentTool === 'add' || currentTool === 'line' || currentTool === 'rect') {
+    target = info.placeCoord;
+  } else if (currentTool === 'erase' || currentTool === 'paint' || currentTool === 'pick' || currentTool === 'fill') {
+    target = info.coord || info.placeCoord;
+  } else target = info.placeCoord;
+  if (!target) { hoverMesh.visible = false; hoverEdge.visible = false; return; }
+  const [x,y,z] = target;
+  if (!inBounds(x,y,z)) { hoverMesh.visible = false; hoverEdge.visible = false; return; }
+  hoverMesh.position.set(x*VS + VS/2, y*VS + VS/2, z*VS + VS/2);
+  hoverEdge.position.copy(hoverMesh.position);
+  hoverMesh.visible = true; hoverEdge.visible = true;
+  hoverMat.color.set(currentColor);
+  document.getElementById('cursor-pos').textContent = `${x},${y},${z}`;
+}
+
+function hideHoverIndicators() {
+  hoverMesh.visible = false; hoverEdge.visible = false;
+  faceDecal.visible = false; faceDecalEdge.visible = false;
+}
+
+function faceLabel(n) {
+  if (Math.abs(n[0]) > 0.5) return n[0] > 0 ? '+X' : '-X';
+  if (Math.abs(n[1]) > 0.5) return n[1] > 0 ? '+Y' : '-Y';
+  return n[2] > 0 ? '+Z' : '-Z';
+}
+
+function updateHoverFromSticky() {
+  if (!stickyAddTarget) { hideHoverIndicators(); return; }
+  const [x,y,z] = stickyAddTarget.coord;
+  if (!inBounds(x,y,z)) { hideHoverIndicators(); return; }
+  hoverMesh.position.set(x*VS + VS/2, y*VS + VS/2, z*VS + VS/2);
+  hoverEdge.position.copy(hoverMesh.position);
+  hoverMesh.visible = true; hoverEdge.visible = true;
+  faceDecal.visible = false; faceDecalEdge.visible = false;
+  hoverMat.color.set(currentColor);
+  document.getElementById('cursor-pos').textContent = `${x},${y},${z}`;
+}
+
+// =============== flood fill (paint connected) ===============
+function floodPaint(start, fromColor, toColor) {
+  if (fromColor === toColor) return;
+  const queue = [start];
+  const seen = new Set();
+  while (queue.length) {
+    const [x,y,z] = queue.pop();
+    const key = k(x,y,z);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (voxels.get(key) !== fromColor) continue;
+    voxels.set(key, toColor);
+    const dirs = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+    for (const [dx,dy,dz] of dirs) {
+      const nx=x+dx, ny=y+dy, nz=z+dz;
+      if (inBounds(nx,ny,nz)) queue.push([nx,ny,nz]);
+    }
+  }
+}
+
+// =============== line drawing (3D bresenham) ===============
+function line3d(a, b) {
+  const out = [];
+  let [x0,y0,z0] = a;
+  let [x1,y1,z1] = b;
+  const dx = Math.abs(x1-x0), dy = Math.abs(y1-y0), dz = Math.abs(z1-z0);
+  const sx = x0<x1?1:-1, sy = y0<y1?1:-1, sz = z0<z1?1:-1;
+  let dm = Math.max(dx,dy,dz), i = dm;
+  let x=x0,y=y0,z=z0;
+  let xErr = dm/2, yErr = dm/2, zErr = dm/2;
+  while (i-- >= 0) {
+    out.push([x,y,z]);
+    xErr -= dx; if (xErr < 0) { xErr += dm; x += sx; }
+    yErr -= dy; if (yErr < 0) { yErr += dm; y += sy; }
+    zErr -= dz; if (zErr < 0) { zErr += dm; z += sz; }
+  }
+  return out;
+}
+
+// =============== input ===============
+let dragging = false;
+let orbiting = false;
+let lastMouse = { x:0, y:0 };
+let lineStart = null;
+let lineAxis = null;
+let lineDragAnchor = null;
+let rectStart = null;
+let rectPlane = null;
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+canvas.addEventListener('pointerdown', (e) => {
+  canvas.setPointerCapture(e.pointerId);
+  if (e.button === 2 || (e.button === 0 && e.shiftKey)) {
+    orbiting = true;
+    lastMouse.x = e.clientX; lastMouse.y = e.clientY;
+    return;
+  }
+  if (e.button === 1) {
+    // middle = pan
+    orbiting = 'pan';
+    lastMouse.x = e.clientX; lastMouse.y = e.clientY;
+    return;
+  }
+  if (e.button === 0) {
+    dragging = true;
+    handleAction(e.clientX, e.clientY, true);
+  }
+});
+
+canvas.addEventListener('pointermove', (e) => {
+  if (orbiting === true) {
+    const dx = e.clientX - lastMouse.x;
+    const dy = e.clientY - lastMouse.y;
+    camTheta.v -= dx * 0.008;
+    camPhi.v -= dy * 0.008;
+    camPhi.v = Math.max(0.05, Math.min(Math.PI - 0.05, camPhi.v));
+    lastMouse.x = e.clientX; lastMouse.y = e.clientY;
+    updateCamera();
+    return;
+  } else if (orbiting === 'pan') {
+    const dx = e.clientX - lastMouse.x;
+    const dy = e.clientY - lastMouse.y;
+    const right = new THREE.Vector3();
+    const up = new THREE.Vector3();
+    camera.matrixWorld.extractBasis(right, up, new THREE.Vector3());
+    const factor = camRadius.v * 0.0015;
+    camTarget.addScaledVector(right, -dx * factor);
+    camTarget.addScaledVector(up, dy * factor);
+    lastMouse.x = e.clientX; lastMouse.y = e.clientY;
+    updateCamera();
+    return;
+  }
+  // Break the sticky add target if the mouse has moved past the threshold.
+  if (stickyAddTarget) {
+    const dx = e.clientX - stickyAddTarget.anchorX;
+    const dy = e.clientY - stickyAddTarget.anchorY;
+    if (Math.hypot(dx, dy) > STICKY_MOVE_THRESHOLD_PX) {
+      stickyAddTarget = null;
+    }
+  }
+  updateHover(e.clientX, e.clientY);
+  if (dragging && (currentTool === 'erase' || currentTool === 'paint' || currentTool === 'facepaint')) {
+    handleAction(e.clientX, e.clientY, false);
+  }
+  if (dragging && currentTool === 'line' && lineStart) {
+    const endRaw = lineEndFromScreen(e.clientX, e.clientY, lineStart, lineAxis);
+    if (endRaw) {
+      const snapped = snapAxisAligned(lineStart, endRaw, lineAxis);
+      updateLinePreview(lineStart, snapped);
+      const cells = line3d(lineStart, snapped);
+      document.getElementById('cursor-pos').textContent =
+        `${snapped.join(',')} · len ${cells.length}`;
+    }
+  }
+  if (dragging && currentTool === 'rect' && rectStart) {
+    const projected = rectEndFromScreen(e.clientX, e.clientY, rectStart, rectPlane);
+    if (projected) {
+      updateRectPreview(rectStart, projected, rectPlane);
+      const dims = rectDims(rectStart, projected, rectPlane);
+      document.getElementById('cursor-pos').textContent =
+        `${projected.join(',')} · ${dims}`;
+    }
+  }
+});
+
+canvas.addEventListener('pointerup', (e) => {
+  canvas.releasePointerCapture(e.pointerId);
+  dragging = false;
+  orbiting = false;
+});
+
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  camRadius.v *= (e.deltaY > 0 ? 1.1 : 0.9);
+  camRadius.v = Math.max(8, Math.min(200, camRadius.v));
+  updateCamera();
+}, { passive: false });
+
+let dragStartedNew = true;
+let lastActedKey = null;
+// Sticky cursor for the add tool: after placing a voxel, the hover preview
+// locks to the next placement position (current voxel + clicked face normal)
+// until the mouse moves. Lets you spam-click to extrude in one direction.
+let stickyAddTarget = null; // { coord:[x,y,z], anchorX, anchorY }
+const STICKY_MOVE_THRESHOLD_PX = 4;
+function handleAction(cx, cy, isStart) {
+  const info = pick(cx, cy);
+  if (!info) return;
+
+  if (isStart) {
+    pushUndo();
+    lastActedKey = null;
+  }
+
+  if (currentTool === 'add') {
+    let placeCoord, normal;
+    // If the sticky target is still active (mouse hasn't moved since last
+    // placement), reuse it rather than picking again. This makes spam-click
+    // build a column/line in the direction of the originally-clicked face,
+    // even if subsequent clicks would have hit a different face geometrically.
+    if (stickyAddTarget) {
+      placeCoord = stickyAddTarget.coord;
+      normal = stickyAddTarget.normal;
+    } else {
+      placeCoord = info.placeCoord;
+      normal = info.normal || [0, 1, 0];
+    }
+    const [x, y, z] = placeCoord;
+    if (!inBounds(x, y, z)) { stickyAddTarget = null; return; }
+    setVoxel(x, y, z, currentColor);
+    // Stick the hover to where the next click would land — same direction.
+    const nextCoord = [x + normal[0], y + normal[1], z + normal[2]];
+    if (inBounds(...nextCoord)) {
+      stickyAddTarget = { coord: nextCoord, normal, anchorX: cx, anchorY: cy };
+    } else {
+      stickyAddTarget = null;
+    }
+    // Snap the hover preview to the new locked position immediately.
+    updateHoverFromSticky();
+  } else if (currentTool === 'erase') {
+    if (!info.coord) return;
+    const [x,y,z] = info.coord;
+    const key = k(x,y,z);
+    if (key === lastActedKey) return;
+    lastActedKey = key;
+    setVoxel(x,y,z,null);
+  } else if (currentTool === 'paint') {
+    if (!info.coord) return;
+    const [x,y,z] = info.coord;
+    const key = k(x,y,z);
+    if (key === lastActedKey) return;
+    lastActedKey = key;
+    if (voxels.has(key)) {
+      // Whole-voxel paint resets any per-face overrides on this voxel —
+      // otherwise the override would visually win over the new base color
+      // and the user would think paint did nothing.
+      clearFaceOverrides(x, y, z);
+      setVoxel(x,y,z,currentColor);
+    }
+  } else if (currentTool === 'facepaint') {
+    if (!info.coord || !info.normal) return;
+    const [x,y,z] = info.coord;
+    const f = normalToFaceIdx(info.normal);
+    if (f < 0) return;
+    const fkey = `${x},${y},${z},${f}`;
+    if (fkey === lastActedKey) return;
+    lastActedKey = fkey;
+    if (voxels.has(k(x,y,z))) {
+      faceColors.set(fkey, currentColor);
+      rebuildMesh();
+    }
+  } else if (currentTool === 'pick') {
+    if (!info.coord) return;
+    const [x,y,z] = info.coord;
+    // If the cursor is on a face with an override, grab that. Otherwise
+    // grab the voxel's base color.
+    let c = null;
+    if (info.normal) {
+      const f = normalToFaceIdx(info.normal);
+      if (f >= 0) c = faceColors.get(`${x},${y},${z},${f}`);
+    }
+    if (!c) c = voxels.get(k(x,y,z));
+    if (c) setColor(c);
+  } else if (currentTool === 'fill') {
+    if (!info.coord) return;
+    const [x,y,z] = info.coord;
+    const fromColor = voxels.get(k(x,y,z));
+    if (!fromColor) return;
+    floodPaint([x,y,z], fromColor, currentColor);
+    rebuildMesh();
+  } else if (currentTool === 'line') {
+    if (isStart) {
+      const target = info.placeCoord;
+      if (!inBounds(...target)) return;
+      lineStart = target;
+      // Lock line direction to the face normal we started from for predictable
+      // "extrude from face" behavior while dragging.
+      lineAxis = info.normal ? [info.normal[0], info.normal[1], info.normal[2]] : [0, 1, 0];
+      lineDragAnchor = { x: cx, y: cy };
+      updateLinePreview(lineStart, lineStart);
+      hoverMesh.visible = false;
+      hoverEdge.visible = false;
+    }
+    if (!isStart) return;
+  } else if (currentTool === 'rect') {
+    if (isStart) {
+      const target = info.placeCoord;
+      if (!inBounds(...target)) return;
+      rectStart = target;
+      // Plane is determined by the surface normal we hit. If we hit the base
+      // plane, normal is (0,1,0) → horizontal floor. If we hit a voxel face,
+      // we use that face's normal so rect lies along the surface.
+      rectPlane = info.normal ? [info.normal[0], info.normal[1], info.normal[2]] : [0,1,0];
+      updateRectPreview(rectStart, rectStart, rectPlane);
+      hoverMesh.visible = false;
+      hoverEdge.visible = false;
+    }
+    if (!isStart) return;
+  }
+}
+
+// =============== axis-snap helper for line tool ===============
+function snapAxisAligned(start, end, lockedAxis = null) {
+  if (lockedAxis) {
+    const [nx, ny, nz] = lockedAxis;
+    if (Math.abs(nx) >= 0.5) return [end[0], start[1], start[2]];
+    if (Math.abs(ny) >= 0.5) return [start[0], end[1], start[2]];
+    if (Math.abs(nz) >= 0.5) return [start[0], start[1], end[2]];
+  }
+  const dx = end[0] - start[0];
+  const dy = end[1] - start[1];
+  const dz = end[2] - start[2];
+  const ax = Math.abs(dx), ay = Math.abs(dy), az = Math.abs(dz);
+  // pick the dominant axis; ties broken by X > Y > Z
+  if (ax >= ay && ax >= az) return [end[0], start[1], start[2]];
+  if (ay >= ax && ay >= az) return [start[0], end[1], start[2]];
+  return [start[0], start[1], end[2]];
+}
+
+// Get a grid-coord end point for the line tool. First try a normal pick (so
+// dragging across existing voxels still works), then fall back to casting
+// against a camera-facing plane through lineStart so dragging into empty sky
+// (e.g. straight up) still produces a usable end.
+const _linePlane = new THREE.Plane();
+const _lineHit = new THREE.Vector3();
+const _lineStartCenter = new THREE.Vector3();
+const _lineAxisVec = new THREE.Vector3();
+const _lineAxisEnd = new THREE.Vector3();
+const _lineStartNdc = new THREE.Vector3();
+const _lineEndNdc = new THREE.Vector3();
+const LINE_STEP_PX = 18;
+const LINE_DEADZONE_PX = 8;
+function lineEndFromScreen(clientX, clientY, start, axis = null) {
+  if (axis) return lineEndFromScreenAxisLocked(clientX, clientY, start, axis);
+
+  const info = pick(clientX, clientY);
+  if (info) return info.placeCoord;
+
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+
+  const px = start[0]*VS + VS/2, py = start[1]*VS + VS/2, pz = start[2]*VS + VS/2;
+  // plane facing the camera — guaranteed not parallel to the ray
+  const camDir = new THREE.Vector3();
+  camera.getWorldDirection(camDir);
+  _linePlane.setFromNormalAndCoplanarPoint(camDir.negate(), new THREE.Vector3(px, py, pz));
+  const hit = raycaster.ray.intersectPlane(_linePlane, _lineHit);
+  if (!hit) return null;
+  let ex = Math.max(0, Math.min(GRID-1, Math.floor(hit.x / VS)));
+  let ey = Math.max(0, Math.min(GRID-1, Math.floor(hit.y / VS)));
+  let ez = Math.max(0, Math.min(GRID-1, Math.floor(hit.z / VS)));
+  return [ex, ey, ez];
+}
+
+function lineEndFromScreenAxisLocked(clientX, clientY, start, axis) {
+  _lineStartCenter.set(
+    start[0] * VS + VS / 2,
+    start[1] * VS + VS / 2,
+    start[2] * VS + VS / 2
+  );
+  _lineAxisVec.set(axis[0], axis[1], axis[2]).normalize();
+  if (!lineDragAnchor) return [...start];
+
+  // Convert axis direction into screen-space and step in voxel units based on
+  // drag pixels along that 2D direction. This is much less twitchy.
+  _lineAxisEnd.copy(_lineStartCenter).addScaledVector(_lineAxisVec, VS);
+  _lineStartNdc.copy(_lineStartCenter).project(camera);
+  _lineEndNdc.copy(_lineAxisEnd).project(camera);
+  const axisScreenX = _lineEndNdc.x - _lineStartNdc.x;
+  const axisScreenY = _lineEndNdc.y - _lineStartNdc.y;
+  const axisLen = Math.hypot(axisScreenX, axisScreenY);
+  if (axisLen < 1e-6) return [...start];
+
+  const ux = axisScreenX / axisLen;
+  const uy = axisScreenY / axisLen;
+  const rect = canvas.getBoundingClientRect();
+  const dxNdc = ((clientX - lineDragAnchor.x) / rect.width) * 2;
+  const dyNdc = -((clientY - lineDragAnchor.y) / rect.height) * 2;
+  const dragAlongAxisNdc = dxNdc * ux + dyNdc * uy;
+  const dragAlongAxisPx = dragAlongAxisNdc * (rect.width / 2);
+  const absPx = Math.abs(dragAlongAxisPx);
+  if (absPx < LINE_DEADZONE_PX) return [...start];
+
+  const signed = dragAlongAxisPx >= 0 ? 1 : -1;
+  const steps = signed * Math.floor((absPx - LINE_DEADZONE_PX) / LINE_STEP_PX + 1e-6);
+  let ex = start[0] + _lineAxisVec.x * steps;
+  let ey = start[1] + _lineAxisVec.y * steps;
+  let ez = start[2] + _lineAxisVec.z * steps;
+  ex = Math.max(0, Math.min(GRID - 1, ex));
+  ey = Math.max(0, Math.min(GRID - 1, ey));
+  ez = Math.max(0, Math.min(GRID - 1, ez));
+  return [Math.round(ex), Math.round(ey), Math.round(ez)];
+}
+
+// =============== rect helpers ===============
+// rectPlane = normal of the surface the rect lies on. The rect lies in the
+// plane perpendicular to that normal, passing through rectStart.
+//
+// We ray-cast against the *infinite* plane (not against scene meshes) so
+// dragging upward over empty sky still places voxels on the wall. The plane
+// passes through the center of the rectStart voxel along the rect plane.
+const _rectPlane = new THREE.Plane();
+const _rectHit = new THREE.Vector3();
+function rectEndFromScreen(clientX, clientY, start, planeNormal) {
+  const rect = canvas.getBoundingClientRect();
+  mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+
+  // Plane passes through the *center* of the rectStart voxel.
+  // (Center, not corner, so the projection lands inside the same voxel cell
+  // when the cursor is over rectStart itself.)
+  const px = start[0]*VS + VS/2;
+  const py = start[1]*VS + VS/2;
+  const pz = start[2]*VS + VS/2;
+  const n = new THREE.Vector3(planeNormal[0], planeNormal[1], planeNormal[2]).normalize();
+  _rectPlane.setFromNormalAndCoplanarPoint(n, new THREE.Vector3(px, py, pz));
+
+  const hit = raycaster.ray.intersectPlane(_rectPlane, _rectHit);
+  if (!hit) return null;
+
+  // Convert the world-space hit back to grid coords, then clamp to bounds.
+  // The two axes perpendicular to planeNormal vary; the on-plane axis stays
+  // locked to start.
+  let ex = Math.floor(hit.x / VS);
+  let ey = Math.floor(hit.y / VS);
+  let ez = Math.floor(hit.z / VS);
+  if (Math.abs(planeNormal[0]) > 0.5) ex = start[0];
+  else if (Math.abs(planeNormal[1]) > 0.5) ey = start[1];
+  else if (Math.abs(planeNormal[2]) > 0.5) ez = start[2];
+  // clamp so dragging far past the boundary still gives a valid rect
+  ex = Math.max(0, Math.min(GRID-1, ex));
+  ey = Math.max(0, Math.min(GRID-1, ey));
+  ez = Math.max(0, Math.min(GRID-1, ez));
+  return [ex, ey, ez];
+}
+
+function rectDims(a, b, planeNormal) {
+  const w = Math.abs(b[0] - a[0]) + 1;
+  const h = Math.abs(b[1] - a[1]) + 1;
+  const d = Math.abs(b[2] - a[2]) + 1;
+  if (Math.abs(planeNormal[1]) > 0.5) return `${w}×${d}`;        // floor/ceil
+  if (Math.abs(planeNormal[0]) > 0.5) return `${d}×${h}`;        // wall along x
+  return `${w}×${h}`;                                             // wall along z
+}
+
+function rectCells(a, b, planeNormal) {
+  const cells = [];
+  const x0 = Math.min(a[0],b[0]), x1 = Math.max(a[0],b[0]);
+  const y0 = Math.min(a[1],b[1]), y1 = Math.max(a[1],b[1]);
+  const z0 = Math.min(a[2],b[2]), z1 = Math.max(a[2],b[2]);
+  for (let x=x0;x<=x1;x++)
+    for (let y=y0;y<=y1;y++)
+      for (let z=z0;z<=z1;z++)
+        if (inBounds(x,y,z)) cells.push([x,y,z]);
+  return cells;
+}
+
+// rect preview reuses the line preview group (same ghost-cube look)
+function updateRectPreview(start, end, planeNormal) {
+  clearLinePreview();
+  if (!start || !end) return;
+  const cells = rectCells(start, end, planeNormal);
+  linePreviewMat.color.set(currentColor);
+  for (const [x,y,z] of cells) {
+    const m = new THREE.Mesh(linePreviewGeo, linePreviewMat);
+    m.position.set(x*VS + VS/2, y*VS + VS/2, z*VS + VS/2);
+    linePreviewGroup.add(m);
+  }
+  // wire-edge the two corner voxels
+  const drawEnd = (coord) => {
+    const [x,y,z] = coord;
+    if (!inBounds(x,y,z)) return;
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(linePreviewGeo), linePreviewEdgeMat);
+    e.position.set(x*VS + VS/2, y*VS + VS/2, z*VS + VS/2);
+    linePreviewGroup.add(e);
+  };
+  drawEnd(start);
+  if (start[0] !== end[0] || start[1] !== end[1] || start[2] !== end[2]) drawEnd(end);
+}
+
+// line / rect tool finalization on pointer up
+canvas.addEventListener('pointerup', (e) => {
+  if (currentTool === 'line' && lineStart) {
+    const endRaw = lineEndFromScreen(e.clientX, e.clientY, lineStart, lineAxis);
+    if (endRaw) {
+      const end = snapAxisAligned(lineStart, endRaw, lineAxis);
+      const cells = line3d(lineStart, end);
+      pushUndo();
+      for (const [x,y,z] of cells) setVoxel(x,y,z,currentColor, true);
+      rebuildMesh();
+    }
+    lineStart = null;
+    lineAxis = null;
+    lineDragAnchor = null;
+    clearLinePreview();
+  }
+  if (currentTool === 'rect' && rectStart) {
+    const end = rectEndFromScreen(e.clientX, e.clientY, rectStart, rectPlane);
+    if (end) {
+      const cells = rectCells(rectStart, end, rectPlane);
+      pushUndo();
+      for (const [x,y,z] of cells) setVoxel(x,y,z,currentColor, true);
+      rebuildMesh();
+    }
+    rectStart = null;
+    rectPlane = null;
+    clearLinePreview();
+  }
+});
+
+// keyboard
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT') return;
+  const key = e.key.toLowerCase();
+  if (e.ctrlKey || e.metaKey) {
+    if (key === 'z') { e.preventDefault(); undo(); return; }
+    if (key === 'y') { e.preventDefault(); redo(); return; }
+  }
+  if (key === 'b') setTool('add');
+  else if (key === 'e') setTool('erase');
+  else if (key === 'p') setTool(e.shiftKey ? 'facepaint' : 'paint');
+  else if (key === 'i') setTool('pick');
+  else if (key === 'f') setTool('fill');
+  else if (key === 'l') setTool('line');
+  else if (key === 'r') setTool('rect');
+  else if (key === 'g') { showGrid = !showGrid; gridHelper.visible = showGrid; document.getElementById('grid-btn').classList.toggle('on', showGrid); document.getElementById('grid-btn').textContent = showGrid?'on':'off'; }
+  else if (key === ' ') { e.preventDefault(); camTarget.set(GRID/2, GRID/4, GRID/2); camRadius.v = 50; camTheta.v = Math.PI/4; camPhi.v = Math.PI/3; updateCamera(); }
+});
+
+// =============== UI wiring ===============
+function setTool(t) {
+  currentTool = t;
+  stickyAddTarget = null;
+  hideHoverIndicators();
+  document.querySelectorAll('.tool').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+  document.getElementById('cur-tool').textContent = t.toUpperCase();
+}
+document.querySelectorAll('.tool').forEach(b => {
+  b.addEventListener('click', () => setTool(b.dataset.tool));
+});
+
+function setColor(hex) {
+  currentColor = hex.toLowerCase();
+  document.getElementById('color-picker').value = hex;
+  document.getElementById('hex-input').value = hex.toUpperCase();
+  document.getElementById('cur-color').textContent = hex.toUpperCase();
+  document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('active', s.dataset.color === currentColor));
+  hoverMat.color.set(currentColor);
+}
+
+function normalizeHexColor(value) {
+  if (typeof value !== 'string') return null;
+  const v = value.trim().toLowerCase();
+  return /^#[0-9a-f]{6}$/.test(v) ? v : null;
+}
+
+function loadPaletteFromStorage() {
+  try {
+    const raw = localStorage.getItem(PALETTE_STORAGE_KEY);
+    if (!raw) return [...DEFAULT_PALETTE];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [...DEFAULT_PALETTE];
+    const out = [];
+    for (const c of parsed) {
+      const hex = normalizeHexColor(c);
+      if (hex && !out.includes(hex)) out.push(hex);
+    }
+    return out.length ? out : [...DEFAULT_PALETTE];
+  } catch {
+    return [...DEFAULT_PALETTE];
+  }
+}
+
+function savePaletteToStorage() {
+  localStorage.setItem(PALETTE_STORAGE_KEY, JSON.stringify(palette));
+}
+
+function removePaletteColor(color) {
+  if (palette.length <= 1) return;
+  const idx = palette.indexOf(color);
+  if (idx === -1) return;
+  palette.splice(idx, 1);
+  if (currentColor === color) {
+    const fallback = palette[Math.min(idx, palette.length - 1)] || DEFAULT_PALETTE[0];
+    setColor(fallback);
+  }
+  savePaletteToStorage();
+  buildSwatches();
+}
+
+function resetPalette() {
+  const ok = window.confirm('Reset palette to defaults? This will remove your saved custom palette.');
+  if (!ok) return;
+  palette = [...DEFAULT_PALETTE];
+  if (!palette.includes(currentColor)) setColor(palette[0]);
+  savePaletteToStorage();
+  buildSwatches();
+}
+
+function buildSwatches() {
+  const grid = document.getElementById('swatches');
+  grid.innerHTML = '';
+  for (const c of palette) {
+    const d = document.createElement('div');
+    d.className = 'swatch';
+    d.style.background = c;
+    d.dataset.color = c;
+    if (c === currentColor) d.classList.add('active');
+    d.title = 'Click to select, Ctrl/Cmd+Click to remove';
+    d.addEventListener('click', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        removePaletteColor(c);
+        return;
+      }
+      setColor(c);
+    });
+    d.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      removePaletteColor(c);
+    });
+    grid.appendChild(d);
+  }
+  const add = document.createElement('div');
+  add.className = 'add-swatch';
+  add.textContent = '+';
+  add.title = 'Add current color to palette';
+  add.addEventListener('click', () => {
+    if (!palette.includes(currentColor)) {
+      palette.push(currentColor);
+      savePaletteToStorage();
+      buildSwatches();
+    }
+  });
+  grid.appendChild(add);
+}
+palette = loadPaletteFromStorage();
+if (!palette.includes(currentColor)) currentColor = palette[0] || DEFAULT_PALETTE[0];
+buildSwatches();
+setColor(currentColor);
+document.getElementById('btn-reset-palette').addEventListener('click', resetPalette);
+
+document.getElementById('color-picker').addEventListener('input', (e) => setColor(e.target.value));
+document.getElementById('hex-input').addEventListener('change', (e) => {
+  let v = e.target.value.trim();
+  if (!v.startsWith('#')) v = '#' + v;
+  if (/^#[0-9a-f]{6}$/i.test(v)) setColor(v);
+  else e.target.value = currentColor.toUpperCase();
+});
+
+// mirror toggles
+document.querySelectorAll('.mirror-btn').forEach(b => {
+  b.addEventListener('click', () => {
+    const a = b.dataset.axis;
+    mirror[a] = !mirror[a];
+    b.classList.toggle('on', mirror[a]);
+    b.textContent = mirror[a] ? 'on' : 'off';
+  });
+});
+
+// display toggles
+document.getElementById('grid-btn').addEventListener('click', (e) => {
+  showGrid = !showGrid; gridHelper.visible = showGrid;
+  e.target.classList.toggle('on', showGrid);
+  e.target.textContent = showGrid?'on':'off';
+});
+document.getElementById('base-btn').addEventListener('click', (e) => {
+  showBase = !showBase; base.visible = showBase;
+  e.target.classList.toggle('on', showBase);
+  e.target.textContent = showBase?'on':'off';
+});
+document.getElementById('opt-btn').addEventListener('click', (e) => {
+  optimize = !optimize;
+  e.target.classList.toggle('on', optimize);
+  e.target.textContent = optimize?'on':'off';
+  rebuildMesh();
+});
+document.getElementById('vsize-input').addEventListener('change', (e) => {
+  voxelSize = parseFloat(e.target.value) || 1;
+});
+
+// clear / save / load
+document.getElementById('btn-clear').addEventListener('click', () => {
+  if (voxels.size && !confirm('Clear all voxels?')) return;
+  pushUndo();
+  voxels.clear();
+  faceColors.clear();
+  rebuildMesh();
+});
+document.getElementById('btn-save').addEventListener('click', () => {
+  const data = {
+    grid: GRID,
+    voxels: Array.from(voxels.entries()).map(([k,c]) => [...k.split(',').map(Number), c]),
+    faceColors: Array.from(faceColors.entries())
+  };
+  const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'voxels.json';
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 100);
+});
+document.getElementById('btn-load').addEventListener('click', () => {
+  document.getElementById('load-input').click();
+});
+document.getElementById('load-input').addEventListener('change', (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      pushUndo();
+      voxels.clear();
+      faceColors.clear();
+      for (const v of data.voxels) {
+        if (v.length === 4) voxels.set(`${v[0]},${v[1]},${v[2]}`, v[3]);
+      }
+      if (Array.isArray(data.faceColors)) {
+        for (const [fk, fc] of data.faceColors) faceColors.set(fk, fc);
+      }
+      rebuildMesh();
+    } catch(err) {
+      alert('Failed to load: ' + err.message);
+    }
+  };
+  reader.readAsText(f);
+  e.target.value = '';
+});
+
+// recipes
+const recipes = {
+  tree: () => {
+    const cx = 16, cz = 16;
+    // trunk
+    for (let y=0; y<6; y++) voxels.set(k(cx,y,cz), '#6b3e26');
+    // leaves: rough sphere
+    for (let dx=-3; dx<=3; dx++)
+      for (let dy=-3; dy<=3; dy++)
+        for (let dz=-3; dz<=3; dz++) {
+          if (dx*dx+dy*dy+dz*dz <= 9) {
+            const x=cx+dx, y=6+dy+3, z=cz+dz;
+            if (inBounds(x,y,z)) {
+              const variant = (Math.random()<0.5)?'#06d6a0':'#6ee7b7';
+              voxels.set(k(x,y,z), variant);
+            }
+          }
+        }
+  },
+  house: () => {
+    for (let x=12;x<=20;x++) for (let z=12;z<=20;z++) {
+      voxels.set(k(x,0,z), '#8a8a92');
+    }
+    // walls
+    for (let y=1;y<=4;y++) {
+      for (let x=12;x<=20;x++) {
+        voxels.set(k(x,y,12), '#fff3b0');
+        voxels.set(k(x,y,20), '#fff3b0');
+      }
+      for (let z=12;z<=20;z++) {
+        voxels.set(k(12,y,z), '#fff3b0');
+        voxels.set(k(20,y,z), '#fff3b0');
+      }
+    }
+    // door
+    voxels.delete(k(16,1,12)); voxels.delete(k(16,2,12));
+    voxels.set(k(16,1,12), '#6b3e26');
+    voxels.set(k(16,2,12), '#6b3e26');
+    // roof
+    for (let i=0;i<=4;i++) {
+      for (let x=12-i; x<=20+i; x++) {
+        const y=5+i;
+        if (y>10) break;
+        const zA = 12+i, zB = 20-i;
+        if (zA<=zB) {
+          if (inBounds(x,y,zA)) voxels.set(k(x,y,zA), '#e63946');
+          if (inBounds(x,y,zB)) voxels.set(k(x,y,zB), '#e63946');
+        }
+      }
+    }
+  },
+  sword: () => {
+    const cx=16, cz=16;
+    // blade
+    for (let y=5;y<=19;y++) voxels.set(k(cx,y,cz), '#e0e0e0');
+    for (let y=6;y<=18;y++) {
+      voxels.set(k(cx-1,y,cz), '#bcbcbc');
+      voxels.set(k(cx+1,y,cz), '#bcbcbc');
+    }
+    // tip
+    voxels.set(k(cx,20,cz), '#e0e0e0');
+    // crossguard
+    for (let dx=-3;dx<=3;dx++) voxels.set(k(cx+dx,4,cz), '#ffd166');
+    voxels.set(k(cx-2,5,cz), '#ffd166'); voxels.set(k(cx+2,5,cz), '#ffd166');
+    // handle
+    for (let y=1;y<=3;y++) voxels.set(k(cx,y,cz), '#6b3e26');
+    voxels.set(k(cx,0,cz), '#ffd166'); // pommel
+  },
+  heart: () => {
+    const heart = [
+      "0110110",
+      "1111111",
+      "1111111",
+      "0111110",
+      "0011100",
+      "0001000"
+    ];
+    const cx = 16-3, cy = 22, cz = 16;
+    for (let i=0;i<heart.length;i++) {
+      for (let j=0;j<heart[i].length;j++) {
+        if (heart[i][j]==='1') {
+          voxels.set(k(cx+j, cy-i, cz), '#e63946');
+        }
+      }
+    }
+  }
+};
+document.querySelectorAll('[data-recipe]').forEach(b => {
+  b.addEventListener('click', () => {
+    pushUndo();
+    voxels.clear();
+    faceColors.clear();
+    recipes[b.dataset.recipe]();
+    rebuildMesh();
+  });
+});
+
+// =============== axis indicator ===============
+function updateAxisIndicator() {
+  const svg = document.getElementById('axis-indicator');
+  if (!svg) return;
+  // project unit vectors using camera basis
+  const right = new THREE.Vector3(); const up = new THREE.Vector3(); const fwd = new THREE.Vector3();
+  camera.matrixWorld.extractBasis(right, up, fwd);
+  // Camera basis: right is screen-right, up is screen-up.
+  // Our world axes:
+  const axes = [
+    { v: new THREE.Vector3(1,0,0), color: '#ff5b3a', label: 'X' },
+    { v: new THREE.Vector3(0,1,0), color: '#6ee7b7', label: 'Y' },
+    { v: new THREE.Vector3(0,0,1), color: '#ffd166', label: 'Z' },
+  ];
+  let html = '';
+  for (const a of axes) {
+    const sx = a.v.dot(right);
+    const sy = -a.v.dot(up);
+    const x2 = sx * 35, y2 = sy * 35;
+    html += `<line x1="0" y1="0" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${a.color}" stroke-width="2"/>`;
+    html += `<text x="${(x2*1.2).toFixed(1)}" y="${(y2*1.2 + 3).toFixed(1)}" fill="${a.color}" font-size="11" font-family="JetBrains Mono" text-anchor="middle">${a.label}</text>`;
+  }
+  html += '<circle cx="0" cy="0" r="2" fill="#fff"/>';
+  svg.innerHTML = html;
+}
+
+// =============== GLB EXPORT ===============
+// Minimal in-house glTF/GLB exporter using our voxel mesh data so we don't
+// need to load three's GLTFExporter (which can be quirky in single-file artifacts).
+document.getElementById('btn-export').addEventListener('click', () => {
+  const statusEl = document.querySelector('#status .item:first-child');
+  const setStatus = (txt, color) => {
+    if (statusEl) {
+      statusEl.innerHTML = `<span class="pulse" style="background:${color||'#6ee7b7'};box-shadow:0 0 8px ${color||'#6ee7b7'}"></span>${txt}`;
+    }
+  };
+  if (!voxels.size) {
+    setStatus('NOTHING TO EXPORT', '#ff5b3a');
+    setTimeout(() => setStatus('READY'), 2200);
+    return;
+  }
+  try {
+    setStatus('BUILDING GLB...', '#ffd166');
+    const glb = buildGLB();
+    const blob = new Blob([glb], { type: 'model/gltf-binary' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'voxel-model.glb';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 100);
+    const kb = (blob.size / 1024).toFixed(1);
+    setStatus(`EXPORTED ${kb} KB`, '#6ee7b7');
+    setTimeout(() => setStatus('READY'), 2500);
+  } catch (err) {
+    console.error('Export failed:', err);
+    setStatus('EXPORT FAILED — see console', '#ff5b3a');
+    setTimeout(() => setStatus('READY'), 3000);
+  }
+});
+
+function buildGLB() {
+  const positions = [];
+  // Dedupe by position only so geometry stays manifold across painted faces.
+  const vertexMap = new Map();
+  const materials = [];
+  const materialMap = new Map(); // hex -> material index
+  const indicesByMaterial = [];  // parallel to materials
+
+  function getVertex(px, py, pz) {
+    const key = `${px.toFixed(4)}|${py.toFixed(4)}|${pz.toFixed(4)}`;
+    let idx = vertexMap.get(key);
+    if (idx === undefined) {
+      idx = positions.length / 3;
+      positions.push(px, py, pz);
+      vertexMap.set(key, idx);
+    }
+    return idx;
+  }
+
+  function getMaterialIndex(hexColor) {
+    const key = hexColor.toLowerCase();
+    let idx = materialMap.get(key);
+    if (idx !== undefined) return idx;
+    const c = hexToRgb01(key);
+    idx = materials.length;
+    materials.push({
+      name: `VoxelMat_${key.slice(1).toUpperCase()}`,
+      pbrMetallicRoughness: {
+        baseColorFactor: [c.r, c.g, c.b, 1],
+        metallicFactor: 0,
+        roughnessFactor: 0.85
+      },
+      doubleSided: false
+    });
+    materialMap.set(key, idx);
+    indicesByMaterial.push([]);
+    return idx;
+  }
+
+  const F = [
+    { n:[ 1,0,0], v:[[1,0,0],[1,1,0],[1,1,1],[1,0,1]] },
+    { n:[-1,0,0], v:[[0,0,1],[0,1,1],[0,1,0],[0,0,0]] },
+    { n:[0, 1,0], v:[[0,1,1],[1,1,1],[1,1,0],[0,1,0]] },
+    { n:[0,-1,0], v:[[0,0,0],[1,0,0],[1,0,1],[0,0,1]] },
+    { n:[0,0, 1], v:[[0,0,1],[1,0,1],[1,1,1],[0,1,1]] },
+    { n:[0,0,-1], v:[[0,0,0],[0,1,0],[1,1,0],[1,0,0]] },
+  ];
+
+  // center the model on the origin
+  let minx=Infinity,miny=Infinity,minz=Infinity,maxx=-Infinity,maxy=-Infinity,maxz=-Infinity;
+  for (const key of voxels.keys()) {
+    const [x,y,z] = parseK(key);
+    if (x<minx) minx=x; if (y<miny) miny=y; if (z<minz) minz=z;
+    if (x>maxx) maxx=x; if (y>maxy) maxy=y; if (z>maxz) maxz=z;
+  }
+  const cx = (minx + maxx + 1) / 2;
+  const cz = (minz + maxz + 1) / 2;
+  const offsetY = miny;
+  const VSx = voxelSize;
+
+  for (const [key, color] of voxels) {
+    const [x,y,z] = parseK(key);
+    const baseColor = color.toLowerCase();
+    for (let f=0; f<6; f++) {
+      const face = F[f];
+      const [nx,ny,nz] = face.n;
+      const nk = k(x+nx,y+ny,z+nz);
+      if (voxels.has(nk)) continue;
+      const ovr = faceColors.get(`${x},${y},${z},${f}`);
+      const faceColor = (ovr || baseColor).toLowerCase();
+      const materialIdx = getMaterialIndex(faceColor);
+      const baseX = (x - cx) * VSx;
+      const baseY = (y - offsetY) * VSx;
+      const baseZ = (z - cz) * VSx;
+      const faceIdx = [];
+      for (let i=0;i<4;i++) {
+        const px = baseX + face.v[i][0]*VSx;
+        const py = baseY + face.v[i][1]*VSx;
+        const pz = baseZ + face.v[i][2]*VSx;
+        faceIdx.push(getVertex(px, py, pz));
+      }
+      indicesByMaterial[materialIdx].push(
+        faceIdx[0], faceIdx[1], faceIdx[2],
+        faceIdx[0], faceIdx[2], faceIdx[3]
+      );
+    }
+  }
+
+  const vi = positions.length / 3;
+  const useUint32 = vi > 65535;
+  const idxComponentType = useUint32 ? 5125 : 5123; // UNSIGNED_INT / UNSIGNED_SHORT
+
+  const posArr = new Float32Array(positions);
+  const idxArrays = indicesByMaterial.map(arr => useUint32 ? new Uint32Array(arr) : new Uint16Array(arr));
+
+  // bbox of positions
+  let pminx=Infinity,pminy=Infinity,pminz=Infinity,pmaxx=-Infinity,pmaxy=-Infinity,pmaxz=-Infinity;
+  for (let i=0;i<posArr.length;i+=3) {
+    if (posArr[i]<pminx) pminx=posArr[i]; if (posArr[i]>pmaxx) pmaxx=posArr[i];
+    if (posArr[i+1]<pminy) pminy=posArr[i+1]; if (posArr[i+1]>pmaxy) pmaxy=posArr[i+1];
+    if (posArr[i+2]<pminz) pminz=posArr[i+2]; if (posArr[i+2]>pmaxz) pmaxz=posArr[i+2];
+  }
+
+  // Build binary buffer with 4-byte alignment between accessors
+  function align4(n) { return (n + 3) & ~3; }
+  const posBytes = posArr.byteLength;
+  const idxOffsets = [];
+  let cursor = align4(posBytes);
+  for (const idxArr of idxArrays) {
+    idxOffsets.push(cursor);
+    cursor = align4(cursor + idxArr.byteLength);
+  }
+  const totalLen = cursor;
+
+  const bin = new ArrayBuffer(totalLen);
+  new Uint8Array(bin).fill(0);
+  new Uint8Array(bin, 0, posBytes).set(new Uint8Array(posArr.buffer));
+  for (let i=0; i<idxArrays.length; i++) {
+    const idxArr = idxArrays[i];
+    new Uint8Array(bin, idxOffsets[i], idxArr.byteLength).set(new Uint8Array(idxArr.buffer));
+  }
+
+  // glTF JSON
+  const bufferViews = [
+    { buffer: 0, byteOffset: 0, byteLength: posBytes, target: 34962 }
+  ];
+  const accessors = [
+    { bufferView: 0, componentType: 5126, count: posArr.length/3, type: "VEC3", min: [pminx,pminy,pminz], max: [pmaxx,pmaxy,pmaxz] }
+  ];
+  const primitives = [];
+  for (let i=0; i<idxArrays.length; i++) {
+    const idxArr = idxArrays[i];
+    if (!idxArr.length) continue;
+    const bufferViewIdx = bufferViews.length;
+    bufferViews.push({
+      buffer: 0,
+      byteOffset: idxOffsets[i],
+      byteLength: idxArr.byteLength,
+      target: 34963
+    });
+    const accessorIdx = accessors.length;
+    accessors.push({
+      bufferView: bufferViewIdx,
+      componentType: idxComponentType,
+      count: idxArr.length,
+      type: "SCALAR"
+    });
+    primitives.push({
+      attributes: { POSITION: 0 },
+      indices: accessorIdx,
+      material: i,
+      mode: 4
+    });
+  }
+
+  const gltf = {
+    asset: { version: "2.0", generator: "Voxel Pixel Forge" },
+    scene: 0,
+    scenes: [{ nodes: [0] }],
+    nodes: [{ mesh: 0 }],
+    meshes: [{
+      primitives
+    }],
+    materials,
+    buffers: [{ byteLength: totalLen }],
+    bufferViews,
+    accessors
+  };
+
+  // JSON chunk (must be padded to 4 bytes with 0x20 spaces)
+  const jsonStr = JSON.stringify(gltf);
+  const jsonBytes = new TextEncoder().encode(jsonStr);
+  const jsonPad = (4 - (jsonBytes.length % 4)) % 4;
+  const jsonChunkLen = jsonBytes.length + jsonPad;
+
+  // BIN chunk (padded to 4 bytes with 0x00)
+  const binChunkLen = totalLen; // already aligned
+
+  const headerLen = 12;
+  const chunkHeaderLen = 8;
+  const totalGLBLen = headerLen + chunkHeaderLen + jsonChunkLen + chunkHeaderLen + binChunkLen;
+
+  const out = new ArrayBuffer(totalGLBLen);
+  const dv = new DataView(out);
+  let p = 0;
+  // header
+  dv.setUint32(p, 0x46546C67, true); p += 4; // 'glTF'
+  dv.setUint32(p, 2, true); p += 4;           // version
+  dv.setUint32(p, totalGLBLen, true); p += 4; // length
+  // JSON chunk
+  dv.setUint32(p, jsonChunkLen, true); p += 4;
+  dv.setUint32(p, 0x4E4F534A, true); p += 4;  // 'JSON'
+  new Uint8Array(out, p, jsonBytes.length).set(jsonBytes);
+  for (let i=0;i<jsonPad;i++) dv.setUint8(p + jsonBytes.length + i, 0x20);
+  p += jsonChunkLen;
+  // BIN chunk
+  dv.setUint32(p, binChunkLen, true); p += 4;
+  dv.setUint32(p, 0x004E4942, true); p += 4;  // 'BIN\0'
+  new Uint8Array(out, p, binChunkLen).set(new Uint8Array(bin));
+  p += binChunkLen;
+
+  return out;
+}
+
+// =============== render loop ===============
+function resize() {
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+
+function tick() {
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+tick();
+
+// start with an empty scene
+rebuildMesh();
+</script>
+</body>
+</html>
