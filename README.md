@@ -21,6 +21,10 @@ VOXEL // pixel forge is a lightweight voxel editor for building colorful block m
 - Free to use.
 - Open source.
 
+## Offline support
+
+The published site is configured as a PWA. After one successful online visit, the app shell and bundled assets are cached by a service worker so it can load offline on subsequent visits.
+
 ## AI Disclosure
 
 The code for Voxel Pixel Forge is completely AI generated.

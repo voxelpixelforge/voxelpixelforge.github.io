@@ -4,7 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>VOXEL // pixel forge</title>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Major+Mono+Display&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#0e0e10" />
+<link rel="manifest" href="./manifest.webmanifest" />
+<link href="./assets/fonts.css" rel="stylesheet">
 <style>
   :root {
     --bg: #0e0e10;
@@ -400,16 +402,8 @@
   <div class="item">COLOR <span id="cur-color">#FF5B3A</span></div>
 </div>
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js"
-  }
-}
-</script>
-
-<script type="module">
-import * as THREE from 'three';
+<script src="./assets/threejs/three.min.js"></script>
+<script>
 
 // =============== state ===============
 const GRID = 32;                         // grid is GRID x GRID x GRID, voxels stored on integer coords [0..GRID-1]
@@ -1981,6 +1975,15 @@ tick();
 
 // start with an empty scene
 rebuildMesh();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch((err) => {
+      console.warn('Service worker registration failed:', err);
+    });
+  });
+}
 </script>
 </body>
 </html>

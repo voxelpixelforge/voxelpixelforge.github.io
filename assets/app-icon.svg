@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0e0e10"/>
+  <rect x="86" y="126" width="340" height="46" rx="10" fill="#16161a"/>
+  <rect x="86" y="182" width="120" height="244" rx="10" fill="#16161a"/>
+  <rect x="218" y="182" width="208" height="244" rx="10" fill="#16161a"/>
+  <rect x="258" y="214" width="128" height="128" rx="12" fill="#ff5b3a"/>
+  <rect x="228" y="250" width="128" height="128" rx="12" fill="#ffd166"/>
+  <path d="M130 312l54-54 30 30-54 54z" fill="#6ee7b7"/>
+  <text x="256" y="108" text-anchor="middle" font-size="34" font-family="monospace" fill="#e8e6df">VPF</text>
+</svg>
